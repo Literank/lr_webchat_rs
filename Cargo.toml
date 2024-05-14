@@ -1,0 +1,13 @@
+[package]
+name = "lr_webchat_rs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "0.7.5"
+socketioxide = { version = "0.13.1", features = ["extensions", "state"] }
+tokio = { version = "1.37.0", features = ["rt-multi-thread", "macros"] }
+tower = { version = "0.4.13", default-features = false }
+tower-http = { version = "0.5.2", features = ["cors"] }
