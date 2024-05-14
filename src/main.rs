@@ -25,6 +25,13 @@ struct ChatData {
     msg: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct CreateGroupData {
+    sids: Vec<String>,
+    name: String,
+    id: String,
+}
+
 type UserStore = HashMap<String, User>;
 
 async fn on_connect(s: SocketRef) {
@@ -60,6 +67,20 @@ async fn on_connect(s: SocketRef) {
         let to = data.to.clone();
         s.to(to).emit("chat", data).ok();
     });
+
+    // Create Room
+    s.on(
+        "create-group",
+        |s: SocketRef, Data::<CreateGroupData>(data)| async move {
+            for socket_id in data.sids.clone() {
+                s.within(socket_id).join(data.id.clone()).ok();
+            }
+            let room_id = data.id.clone();
+            let room_name = data.name.clone();
+            s.within(data.id.clone()).emit("create-group", data).ok();
+            println!("Room {} => {} created", room_id, room_name)
+        },
+    );
 }
 
 #[tokio::main]
