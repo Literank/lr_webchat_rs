@@ -1,0 +1,18 @@
+services:
+  lr-webchat-rs:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    ports:
+      - 4000:4000
+    environment:
+      - PORT=4000
+  lr-webchat-react:
+    build:
+      context: ../../lr_webchat
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    depends_on:
+      lr-webchat-rs:
+        condition: service_started
