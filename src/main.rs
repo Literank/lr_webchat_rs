@@ -1,20 +1,66 @@
-use socketioxide::{extract::SocketRef, SocketIo};
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+use socketioxide::{
+    extract::{Data, SocketRef, State},
+    SocketIo,
+};
+use tokio::{net::TcpListener, sync::RwLock};
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 
 const PORT: i32 = 4000;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct User {
+    name: String,
+    emoji: String,
+    sid: Option<String>,
+}
+
+type UserStore = HashMap<String, User>;
+
+async fn on_connect(s: SocketRef) {
+    println!("A user connected {}", s.id);
+
+    s.on(
+        "user-join",
+        |s: SocketRef, Data::<User>(user), users: State<RwLock<UserStore>>| async move {
+            if user.name == "" {
+                return;
+            }
+            println!("User {} => {} {} joined", s.id, user.emoji, user.name);
+            let new_user = User {
+                name: user.name,
+                emoji: user.emoji,
+                sid: Some(s.id.to_string()),
+            };
+            let mut binding = users.write().await;
+            binding.insert(s.id.to_string(), new_user);
+            let items: Vec<(String, User)> = binding
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            // If you provide array-like data (tuple, vec, arrays), it will be considered as multiple arguments.
+            // Therefore if you want to send an array as the first argument of the payload, you need to wrap it in an array or a tuple.
+            s.broadcast().emit("contacts", (items.clone(),)).ok();
+            s.emit("contacts", (items,)).ok(); // Emit to itself as well
+        },
+    )
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (layer, io) = SocketIo::builder().build_layer();
-    io.ns("/", |s: SocketRef| println!("A user connected {}", s.id));
+    let start_users: RwLock<UserStore> = HashMap::new().into();
+    let (layer, io) = SocketIo::builder().with_state(start_users).build_layer();
+    io.ns("/", on_connect);
 
     let app = axum::Router::new().layer(
         ServiceBuilder::new()
             .layer(CorsLayer::permissive())
             .layer(layer),
     );
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", PORT))
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", PORT))
         .await
         .unwrap();
     println!("Chat server serving at localhost:{}", PORT);
