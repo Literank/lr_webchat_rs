@@ -47,7 +47,7 @@ async fn on_connect(s: SocketRef) {
     s.on(
         "user-join",
         |s: SocketRef, Data::<User>(user), users: State<RwLock<UserStore>>| async move {
-            if user.name == "" {
+            if user.name.is_empty() {
                 return;
             }
             println!("User {} => {} {} joined", s.id, user.emoji, user.name);
