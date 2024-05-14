@@ -18,6 +18,13 @@ struct User {
     sid: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ChatData {
+    to: String,
+    from: String,
+    msg: String,
+}
+
 type UserStore = HashMap<String, User>;
 
 async fn on_connect(s: SocketRef) {
@@ -35,6 +42,7 @@ async fn on_connect(s: SocketRef) {
                 emoji: user.emoji,
                 sid: Some(s.id.to_string()),
             };
+            s.join(s.id).ok(); // Hack: join its own room for private messaging
             let mut binding = users.write().await;
             binding.insert(s.id.to_string(), new_user);
             let items: Vec<(String, User)> = binding
@@ -46,7 +54,12 @@ async fn on_connect(s: SocketRef) {
             s.broadcast().emit("contacts", (items.clone(),)).ok();
             s.emit("contacts", (items,)).ok(); // Emit to itself as well
         },
-    )
+    );
+
+    s.on("chat", |s: SocketRef, Data::<ChatData>(data)| async move {
+        let to = data.to.clone();
+        s.to(to).emit("chat", data).ok();
+    });
 }
 
 #[tokio::main]
