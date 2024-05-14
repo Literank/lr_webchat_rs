@@ -32,6 +32,13 @@ struct CreateGroupData {
     id: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct GroupChatData {
+    room: String,
+    speaker: String,
+    msg: String,
+}
+
 type UserStore = HashMap<String, User>;
 
 async fn on_connect(s: SocketRef) {
@@ -79,6 +86,14 @@ async fn on_connect(s: SocketRef) {
             let room_name = data.name.clone();
             s.within(data.id.clone()).emit("create-group", data).ok();
             println!("Room {} => {} created", room_id, room_name)
+        },
+    );
+
+    s.on(
+        "group-chat",
+        |s: SocketRef, Data::<GroupChatData>(data)| async move {
+            let room = data.room.clone();
+            s.to(room).emit("group-chat", data).ok();
         },
     );
 }
